@@ -82,6 +82,8 @@ def extract_features(frame):
 
 # Initialize face detector
 face_cascade = cv2.CascadeClassifier(HAAR_CASCADE_PATH)
+if face_cascade.empty():
+    raise FileNotFoundError("Could not load Haar Cascade file. Check the path.")
 
 # Initialize DataFrame to store features
 feature_data = []
@@ -115,11 +117,16 @@ for cat_folder in CAT_FOLDERS:
         cap.release()
         print(f"Extracted {frame_count} frames from {video_file}")
 
+# Determine the number of HSV and LBP features dynamically
+example_features = extract_features(np.zeros((100, 100, 3), dtype=np.uint8))  # Dummy frame
+num_hsv_features = GRID_SIZE[0] * GRID_SIZE[1] * 3  # 3 channels (H, S, V)
+num_lbp_features = 16  # 16 bins for LBP histogram
+
 # Create DataFrame and save to CSV
 columns = (
-        [f"hsv_{i}" for i in range(len(hsv_features))] +
-        [f"lbp_{i}" for i in range(len(lbp_hist))] +
-        ["label"]
+    [f"hsv_{i}" for i in range(num_hsv_features)] +
+    [f"lbp_{i}" for i in range(num_lbp_features)] +
+    ["label"]
 )
 df = pd.DataFrame(feature_data, columns=columns)
 df.to_csv("cat_features.csv", index=False)
@@ -149,8 +156,15 @@ clf.fit(X_train, y_train)
 # Evaluate performance
 train_acc = clf.score(X_train, y_train)
 test_acc = clf.score(X_test, y_test)
+
+# Save training and validation accuracy to a .txt file
+with open("training_validation_accuracy.txt", "w") as f:
+    f.write(f"Training Accuracy: {train_acc:.2f}\n")
+    f.write(f"Validation Accuracy: {test_acc:.2f}\n")
+
 print(f"Training Accuracy: {train_acc:.2f}")
 print(f"Validation Accuracy: {test_acc:.2f}")
+print("Training and validation accuracy saved to training_validation_accuracy.txt")
 
 # Save model for later use
 import joblib
